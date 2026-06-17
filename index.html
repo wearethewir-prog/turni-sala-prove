@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f1147" />
+  <title>Turni Sala Prove</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login-screen" class="screen center">
+    <div class="login-card">
+      <div class="logo">🎸</div>
+      <h1>Turni Sala Prove</h1>
+      <p class="muted">Accedi per inserire le tue disponibilità.</p>
+      <button id="btn-google" class="btn btn-google">
+        <span class="g">G</span> Entra con Google
+      </button>
+      <div class="or"><span>oppure</span></div>
+      <form id="login-email-form" class="email-form">
+        <input id="email-input" type="email" inputmode="email" autocomplete="email" placeholder="la-tua@email.com" />
+        <button id="btn-email" type="submit" class="btn btn-ghost">Inviami un link</button>
+      </form>
+      <p id="login-msg" class="login-msg"></p>
+    </div>
+  </div>
+
+  <!-- ============ NON AUTORIZZATO ============ -->
+  <div id="blocked-screen" class="screen center hidden">
+    <div class="login-card">
+      <div class="logo">🚫</div>
+      <h1>Accesso non autorizzato</h1>
+      <p class="muted">L'indirizzo <b id="blocked-email"></b> non è nella lista dei membri abilitati.<br>Chiedi all'amministratore di aggiungerti.</p>
+      <button id="btn-logout-blocked" class="btn btn-ghost">Esci</button>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app" class="hidden">
+    <header class="app-header">
+      <div class="weeknav">
+        <button id="btn-prev" class="nav-btn" aria-label="Settimana precedente">‹</button>
+        <div class="week-center">
+          <div id="week-label" class="week-label">—</div>
+          <button id="btn-today" class="today-btn">Oggi</button>
+        </div>
+        <button id="btn-next" class="nav-btn" aria-label="Settimana successiva">›</button>
+      </div>
+      <button id="btn-logout" class="logout-btn" title="Esci">⎋</button>
+    </header>
+
+    <main class="app-main">
+      <!-- VISTA: Le mie disponibilità -->
+      <section id="view-mine" class="view">
+        <div class="hint" id="mine-hint">✋ Tieni premuto e trascina su una colonna per segnare le ore. Tocca una striscia per modificarla.</div>
+        <div id="cal-mine" class="cal-scroll"></div>
+        <div class="savebar">
+          <button id="btn-save" class="btn btn-save">Salva disponibilità <span id="save-dot" class="save-dot hidden"></span></button>
+        </div>
+      </section>
+
+      <!-- VISTA: Tutti -->
+      <section id="view-all" class="view hidden">
+        <div id="legend" class="legend"></div>
+        <div id="cal-all" class="cal-scroll"></div>
+        <div id="summary" class="summary"></div>
+      </section>
+
+      <!-- VISTA: Utenti (admin) -->
+      <section id="view-admin" class="view hidden">
+        <div class="admin-wrap">
+          <h2>Membri autorizzati</h2>
+          <form id="admin-form" class="admin-form">
+            <input id="u-nome" type="text" placeholder="Nome" />
+            <input id="u-email" type="email" inputmode="email" placeholder="email@gmail.com" />
+            <div class="admin-form-row">
+              <label class="color-pick"><input id="u-colore" type="color" value="#FFB3BA" /><span>colore</span></label>
+              <select id="u-ruolo">
+                <option value="membro">Membro</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button id="btn-add-user" type="submit" class="btn btn-small">Aggiungi</button>
+            </div>
+          </form>
+          <div id="user-list" class="user-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button id="tab-mine" class="tab active"><span class="ti">📅</span><span>Le mie</span></button>
+      <button id="tab-all" class="tab"><span class="ti">👥</span><span>Tutti</span></button>
+      <button id="tab-admin" class="tab hidden"><span class="ti">⚙️</span><span>Utenti</span></button>
+    </nav>
+  </div>
+
+  <!-- ============ MODAL modifica striscia ============ -->
+  <div id="modal-strip" class="modal hidden">
+    <div class="modal-card">
+      <h3>Modifica disponibilità</h3>
+      <label>Giorno
+        <select id="m-giorno"></select>
+      </label>
+      <div class="modal-times">
+        <label>Dalle <select id="m-inizio"></select></label>
+        <label>Alle <select id="m-fine"></select></label>
+      </div>
+      <p id="m-err" class="m-err"></p>
+      <div class="modal-actions">
+        <button id="btn-m-del" class="btn btn-danger">Elimina</button>
+        <div class="spacer"></div>
+        <button id="btn-m-cancel" class="btn btn-ghost">Annulla</button>
+        <button id="btn-m-save" class="btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

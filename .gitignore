@@ -1,0 +1,12 @@
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+
+# Segreti locali (NON committare token o chiavi di servizio)
+secrets.local.*
+*.secret
