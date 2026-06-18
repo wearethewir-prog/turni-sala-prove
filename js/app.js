@@ -27,7 +27,8 @@
     session: null, me: null, isAdmin: false,
     usersByEmail: {}, curMonday: startOfWeek(new Date()),
     view: 'mine', mineStrips: [], mineKey: null, dirty: false,
-    channel: null, _initedFor: null, _allTimer: null
+    channel: null, _initedFor: null, _allTimer: null,
+    _localSha: null, _updateAvail: false, _toastDismissed: false, _verChannel: null, _verPollId: null
   };
 
   // ---------- toast ----------
@@ -73,7 +74,50 @@
         if (state.view === 'all') { clearTimeout(state._allTimer); state._allTimer = setTimeout(loadAll, 400); }
       });
     }
+    startVersionCheck();
     showView('mine');
+  }
+
+  async function doGoogle(force) {
+    $('login-msg').textContent = force ? 'Scegli l\'account…' : 'Apertura Google…';
+    $('login-msg').classList.remove('err');
+    const { error } = await DB.signInGoogle(force);
+    if (error) { $('login-msg').textContent = 'Errore login Google: ' + error.message; $('login-msg').classList.add('err'); }
+  }
+
+  // ---------- rilevamento aggiornamenti (badge + toast) ----------
+  async function startVersionCheck() {
+    if (state._verChannel) return;
+    try { state._localSha = await DB.getAppSha(); } catch (_) {}
+    state._verChannel = DB.subscribeAppVersion(onVerChange);
+    state._verPollId = setInterval(async () => {
+      try { const s = await DB.getAppSha(); if (s && state._localSha && s !== state._localSha) showUpdate(); } catch (_) {}
+    }, 5 * 60 * 1000);
+  }
+  function onVerChange(sha) { if (sha && state._localSha && sha !== state._localSha) showUpdate(); }
+  function showUpdate() {
+    if (state._updateAvail) return;
+    state._updateAvail = true;
+    $('btn-update').classList.remove('hidden');
+    refreshUpdateToast();
+  }
+  // il toast compare solo nella pagina principale ("Le mie") e finché non lo chiudi
+  function refreshUpdateToast() {
+    const show = state._updateAvail && !state._toastDismissed && state.view === 'mine';
+    $('update-toast').classList.toggle('hidden', !show);
+  }
+  function applyUpdate() {
+    $('btn-update').disabled = true;
+    $('update-overlay').classList.remove('hidden');
+    const bust = Date.now();
+    const assets = ['index.html', 'js/app.js', 'js/db.js', 'js/config.js', 'css/style.css'];
+    const jobs = [];
+    if ('serviceWorker' in navigator) jobs.push(navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister()))).catch(() => {}));
+    if (window.caches) jobs.push(caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).catch(() => {}));
+    Promise.all(jobs)
+      .then(() => Promise.all(assets.map(u => fetch(u, { cache: 'reload' }).catch(() => {}))))
+      .then(() => location.replace(location.pathname + '?_r=' + bust))
+      .catch(() => location.reload());
   }
 
   // ============================================================
@@ -476,29 +520,23 @@
     if (v === 'mine') loadMine();
     else if (v === 'all') loadAll();
     else loadAdmin();
+    refreshUpdateToast();
   }
 
   // ============================================================
   //  WIRING + BOOT
   // ============================================================
   function wire() {
-    // login
-    $('btn-google').addEventListener('click', async () => {
-      $('login-msg').textContent = 'Apertura Google…'; $('login-msg').classList.remove('err');
-      const { error } = await DB.signInGoogle();
-      if (error) { $('login-msg').textContent = 'Login Google non ancora attivo. Usa l\'email qui sotto.'; $('login-msg').classList.add('err'); }
-    });
-    $('login-email-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = $('email-input').value.trim();
-      if (!email) return;
-      $('login-msg').textContent = 'Invio in corso…'; $('login-msg').classList.remove('err');
-      const { error } = await DB.signInEmail(email);
-      if (error) { $('login-msg').textContent = 'Errore: ' + error.message; $('login-msg').classList.add('err'); }
-      else { $('login-msg').textContent = '✉️ Ti ho inviato un link a ' + email + '. Aprilo da questo dispositivo per entrare.'; }
-    });
+    // login (solo Google)
+    $('btn-google').addEventListener('click', () => doGoogle(false));
+    $('btn-google-switch').addEventListener('click', () => doGoogle(true));
     $('btn-logout-blocked').addEventListener('click', () => DB.signOut());
     $('btn-logout').addEventListener('click', () => DB.signOut());
+
+    // aggiornamenti
+    $('btn-update').addEventListener('click', applyUpdate);
+    $('update-toast-reload').addEventListener('click', applyUpdate);
+    $('update-toast-x').addEventListener('click', () => { state._toastDismissed = true; refreshUpdateToast(); });
 
     // settimana
     $('btn-prev').addEventListener('click', () => setWeek(addDays(state.curMonday, -7)));

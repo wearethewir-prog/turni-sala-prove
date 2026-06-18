@@ -14,15 +14,11 @@
     <div class="login-card">
       <div class="logo">🎸</div>
       <h1>Turni Sala Prove</h1>
-      <p class="muted">Accedi per inserire le tue disponibilità.</p>
+      <p class="muted">Accedi con il tuo account Google autorizzato.</p>
       <button id="btn-google" class="btn btn-google">
         <span class="g">G</span> Entra con Google
       </button>
-      <div class="or"><span>oppure</span></div>
-      <form id="login-email-form" class="email-form">
-        <input id="email-input" type="email" inputmode="email" autocomplete="email" placeholder="la-tua@email.com" />
-        <button id="btn-email" type="submit" class="btn btn-ghost">Inviami un link</button>
-      </form>
+      <button id="btn-google-switch" type="button" class="btn-link">Cambia account</button>
       <p id="login-msg" class="login-msg"></p>
     </div>
   </div>
@@ -48,6 +44,9 @@
         </div>
         <button id="btn-next" class="nav-btn" aria-label="Settimana successiva">›</button>
       </div>
+      <button id="btn-update" class="update-badge hidden" type="button" title="Nuovo aggiornamento — ricarica">
+        <span class="ico">⚠</span><span>Update</span>
+      </button>
       <button id="btn-logout" class="logout-btn" title="Esci">⎋</button>
     </header>
 
@@ -118,6 +117,22 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
+
+  <!-- Toast aggiornamento (centrato, solo pagina principale) -->
+  <div id="update-toast" class="update-toast hidden">
+    <button id="update-toast-x" class="update-toast-x" aria-label="Chiudi">×</button>
+    <div class="ut-emoji">🔄</div>
+    <div class="ut-title">Nuova versione disponibile</div>
+    <div class="ut-text">È stato pubblicato un aggiornamento dell'app.</div>
+    <button id="update-toast-reload" class="btn ut-reload">Ricarica ora</button>
+  </div>
+
+  <!-- Overlay "aggiornamento in corso" -->
+  <div id="update-overlay" class="update-overlay hidden">
+    <div class="uo-spinner"></div>
+    <div class="uo-title">Aggiornamento in corso</div>
+    <div class="uo-text">Sto scaricando la nuova versione, attendi qualche secondo…</div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>

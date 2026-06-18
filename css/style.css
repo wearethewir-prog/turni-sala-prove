@@ -191,3 +191,28 @@ body {
 /* ---------- Toast ---------- */
 .toast { position: fixed; bottom: calc(var(--tabbar-h) + 14px); left: 50%; transform: translateX(-50%); background: #221a3a; color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 14px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: 90%; text-align: center; }
 .toast.err { background: var(--danger); }
+
+/* ---------- Login: link "cambia account" ---------- */
+.btn-link { background: none; border: none; color: var(--primary-d); font-size: 13.5px; margin-top: 12px; cursor: pointer; text-decoration: underline; }
+
+/* ---------- Badge aggiornamento (header) ---------- */
+.update-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #D97757, #C15F3C); color: #fff; border: none; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 800; cursor: pointer; margin-right: 4px; box-shadow: 0 2px 8px rgba(193,95,60,.45); }
+.update-badge .ico { color: #fff5d4; animation: updBlink 1s ease-in-out infinite; }
+.update-badge:hover .ico { animation-play-state: paused; }
+.update-badge:disabled { opacity: .65; cursor: wait; }
+@keyframes updBlink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(1.18); } }
+
+/* ---------- Toast aggiornamento (centrato) ---------- */
+.update-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 70; background: #fff; border: 2px solid #f0d9cf; border-radius: 18px; padding: 26px 24px 22px; width: min(86%, 360px); text-align: center; box-shadow: 0 24px 64px rgba(40,20,90,.32); }
+.update-toast-x { position: absolute; top: 6px; right: 10px; background: none; border: none; font-size: 24px; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.update-toast .ut-emoji { font-size: 40px; line-height: 1; }
+.update-toast .ut-title { font-size: 17px; font-weight: 800; margin: 8px 0 4px; }
+.update-toast .ut-text { font-size: 13.5px; color: var(--muted); margin-bottom: 16px; }
+.update-toast .ut-reload { background: linear-gradient(135deg, #D97757, #C15F3C); width: 100%; }
+
+/* ---------- Overlay aggiornamento in corso ---------- */
+.update-overlay { position: fixed; inset: 0; z-index: 90; background: linear-gradient(135deg, #2a1c4a, #1f1147); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px; }
+.uo-spinner { width: 56px; height: 56px; border: 5px solid rgba(255,255,255,.18); border-top-color: #D97757; border-radius: 50%; animation: uoSpin .9s linear infinite; margin-bottom: 20px; }
+@keyframes uoSpin { to { transform: rotate(360deg); } }
+.uo-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.uo-text { font-size: 13.5px; opacity: .82; max-width: 320px; line-height: 1.45; }

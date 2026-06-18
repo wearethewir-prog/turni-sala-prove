@@ -17,8 +17,11 @@
 
     async getSession() { const { data } = await sb.auth.getSession(); return data.session; },
     onAuth(cb) { sb.auth.onAuthStateChange((_e, session) => cb(session)); },
-    async signInGoogle() { return sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectUrl() } }); },
-    async signInEmail(email) { return sb.auth.signInWithOtp({ email: lower(email), options: { emailRedirectTo: redirectUrl() } }); },
+    async signInGoogle(forceChooser) {
+      const options = { redirectTo: redirectUrl() };
+      if (forceChooser) options.queryParams = { prompt: 'select_account' };
+      return sb.auth.signInWithOAuth({ provider: 'google', options });
+    },
     async signOut() { return sb.auth.signOut(); },
 
     // riga utente se autorizzato, altrimenti null (RLS restituisce 0 righe se non abilitato)
@@ -70,6 +73,17 @@
     subscribeDisponibilita(cb) {
       return sb.channel('disp-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'disponibilita' }, cb)
+        .subscribe();
+    },
+
+    async getAppSha() {
+      const { data } = await sb.from('app_version').select('sha').eq('id', 1).maybeSingle();
+      return data ? data.sha : '';
+    },
+    subscribeAppVersion(cb) {
+      return sb.channel('ver-live')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_version', filter: 'id=eq.1' },
+          (p) => cb(p && p.new && p.new.sha))
         .subscribe();
     }
   };

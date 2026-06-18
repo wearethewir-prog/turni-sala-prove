@@ -71,7 +71,7 @@ create trigger trg_proteggi_admin
 
 -- ---------- Seed admin perpetuo ----------
 insert into public.utenti_autorizzati (email, nome, colore, ruolo, attivo)
-values ('marabelli.s@gmail.com', 'Stefano', '#BAE1FF', 'admin', true)
+values ('marabelli.s@gmail.com', 'Stefano Marabelli', '#BAE1FF', 'admin', true)
 on conflict (email) do update set ruolo = 'admin', attivo = true;
 
 -- ---------- Row Level Security ----------
