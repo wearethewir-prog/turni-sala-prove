@@ -125,7 +125,7 @@
   }
   // il toast compare solo nella pagina principale ("Le mie") e finché non lo chiudi
   function refreshUpdateToast() {
-    const show = state._updateAvail && !state._toastDismissed && state.view === 'mine';
+    const show = state._updateAvail && !state._toastDismissed;
     $('update-toast').classList.toggle('hidden', !show);
   }
   function applyUpdate() {
