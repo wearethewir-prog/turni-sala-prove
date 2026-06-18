@@ -387,15 +387,26 @@
       const dayStr = DB.dstr(addDays(state.curMonday, d));
       const dayRows = rows.filter(r => r.giorno === dayStr);
 
-      // blocchi colorati per utente
-      for (const r of dayRows) {
+      // blocchi colorati per utente (colore configurato) + etichetta nome in cima
+      const dayBlocks = dayRows.map(r => {
         const u = state.usersByEmail[DB.lower(r.user_email)];
-        const color = u ? u.colore : '#cccccc';
-        const a = hmToSlot(r.ora_inizio), b = hmToSlot(r.ora_fine);
-        const blk = document.createElement('div'); blk.className = 'ov-block';
-        blk.style.top = (a * ch) + 'px'; blk.style.height = ((b - a) * ch) + 'px';
-        blk.style.background = hexToRgba(color, 0.5);
-        col.appendChild(blk);
+        return { color: u ? u.colore : '#cccccc', name: shortName(u, r.user_email), a: hmToSlot(r.ora_inizio), b: hmToSlot(r.ora_fine) };
+      }).sort((x, y) => x.a - y.a);
+      let lastLabelBottom = -999;
+      for (const blk of dayBlocks) {
+        const top = blk.a * ch, height = (blk.b - blk.a) * ch;
+        const el = document.createElement('div'); el.className = 'ov-block';
+        el.style.top = top + 'px'; el.style.height = height + 'px';
+        el.style.background = hexToRgba(blk.color, 0.5);
+        col.appendChild(el);
+        // nome in cima, spostato in basso se si sovrappone a un'altra etichetta
+        const ly = Math.max(top + 1, lastLabelBottom + 2);
+        if (ly + 12 <= top + height) {
+          const lab = document.createElement('div'); lab.className = 'ov-name';
+          lab.textContent = blk.name; lab.style.top = ly + 'px'; lab.style.color = blk.color;
+          col.appendChild(lab);
+          lastLabelBottom = ly + 12;
+        }
       }
 
       // conteggio per slot
@@ -442,6 +453,10 @@
   }
 
   function nameOf(email) { const u = state.usersByEmail[DB.lower(email)]; return u ? (u.nome || u.email.split('@')[0]) : email.split('@')[0]; }
+  function shortName(u, email) {
+    const n = (u && u.nome && u.nome.trim()) ? u.nome.trim().split(/\s+/)[0] : email.split('@')[0];
+    return n.length > 8 ? n.slice(0, 8) : n;
+  }
 
   function renderSummary(summaryDays, responders, R, best) {
     const box = $('summary');
