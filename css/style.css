@@ -251,7 +251,7 @@ input[type="color"] { background: none; }
 .cal-dayh.today b { color: #ffffff; }
 /* vista d'insieme */
 .ov-block { mix-blend-mode: screen; }
-.ov-block, .ov-full, .ov-name { pointer-events: none; }
+.ov-block, .ov-band { pointer-events: none; }
 .ov-name { position: absolute; left: 2px; right: 2px; font-size: 9px; font-weight: 800; line-height: 1.1; z-index: 4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,.95), 0 0 3px rgba(0,0,0,.9); }
 .ov-full { background: rgba(38,209,103,.34); border-top: 2px solid #26d167; border-bottom: 2px solid #26d167; color: #daffe9; z-index: 5; }
 .summary .sum-row .t, .summary .best b { color: #34d36f; }
@@ -272,3 +272,10 @@ input[type="color"] { background: none; }
 .user-row { flex-wrap: wrap; row-gap: 8px; }
 .user-row .strum-sel { flex: 0 0 auto; padding: 7px 4px; font-size: 13px; max-width: 116px; }
 .summary.list-full { max-height: none; flex: 1 1 auto; min-height: 0; border-top: none; }
+
+/* ---- Incroci verdi con icone strumenti + legenda in basso ---- */
+.legend { border-bottom: none; border-top: 1px solid var(--line-strong); }
+.ov-band { position: absolute; left: 1px; right: 1px; z-index: 4; border-radius: 5px; background: rgba(38,209,103,.24); display: flex; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; }
+.ov-band .iconz { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 0; font-size: 12px; line-height: 1.05; }
+.ov-band.full { z-index: 6; flex-direction: column; gap: 1px; background: rgba(38,209,103,.5); border: 1.5px solid #2bd46a; box-shadow: 0 0 10px rgba(38,209,103,.45); }
+.ov-band.full .tt { font-size: 9px; font-weight: 800; color: #eaffef; }

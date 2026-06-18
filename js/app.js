@@ -385,34 +385,34 @@
     return users;
   }
 
-  // calcola sovrapposizioni della settimana (condiviso tra vista "Tutti" ed "Elenco")
+  // per ogni giorno: segmenti in cui >=2 utenti coincidono (stesso set) + chi sono
   function computeOverlap(rows) {
     const responders = [...new Set(rows.map(r => DB.lower(r.user_email)))];
     const R = responders.length;
-    const fullEnabled = R >= 2;
     const byDay = []; let best = { count: 0 };
     for (let d = 0; d < 7; d++) {
       const dayStr = DB.dstr(addDays(state.curMonday, d));
       const dayRows = rows.filter(r => r.giorno === dayStr);
-      const count = new Array(SLOTS).fill(0);
+      const sets = [];
       for (let s = 0; s < SLOTS; s++) {
-        const here = new Set();
-        for (const r of dayRows) { if (hmToSlot(r.ora_inizio) <= s && s < hmToSlot(r.ora_fine)) here.add(DB.lower(r.user_email)); }
-        count[s] = here.size;
-        if (here.size > best.count) best = { count: here.size, day: d, slot: s };
+        const u = [];
+        for (const r of dayRows) { if (hmToSlot(r.ora_inizio) <= s && s < hmToSlot(r.ora_fine)) u.push(DB.lower(r.user_email)); }
+        const uniq = [...new Set(u)];
+        sets.push(uniq);
+        if (uniq.length > best.count) best = { count: uniq.length, day: d, slot: s };
       }
-      const ranges = [];
-      if (fullEnabled) {
-        let run = null;
-        for (let s = 0; s < SLOTS; s++) {
-          if (count[s] === R) { if (!run) run = [s, s + 1]; else run[1] = s + 1; }
-          else if (run) { ranges.push(run); run = null; }
-        }
-        if (run) ranges.push(run);
+      const segs = []; let i = 0;
+      while (i < SLOTS) {
+        if (sets[i].length < 2) { i++; continue; }
+        const key = [...sets[i]].sort().join('|');
+        let j = i + 1;
+        while (j < SLOTS && [...sets[j]].sort().join('|') === key) j++;
+        segs.push({ a: i, b: j, users: sets[i].slice(), isFull: sets[i].length === R && R >= 2 });
+        i = j;
       }
-      byDay.push({ d, ranges });
+      byDay.push({ d, segs });
     }
-    return { responders, R, fullEnabled, byDay, best };
+    return { responders, R, byDay, best };
   }
 
   function renderOverview(rows) {
@@ -422,32 +422,25 @@
       const col = colByDay(calAll, d); if (!col) continue;
       const dayStr = DB.dstr(addDays(state.curMonday, d));
       const dayRows = rows.filter(r => r.giorno === dayStr);
-      // blocchi per utente: colore configurato (più trasparente) + nome e strumento in cima
-      const dayBlocks = dayRows.map(r => {
+      // rettangoli per utente: colore configurato, trasparenti, SENZA nome
+      for (const r of dayRows) {
         const u = state.usersByEmail[DB.lower(r.user_email)];
-        return { color: u ? u.colore : '#cccccc', label: (u ? strumEmoji(u.strumento) : '🎵') + ' ' + shortName(u, r.user_email), a: hmToSlot(r.ora_inizio), b: hmToSlot(r.ora_fine) };
-      }).sort((x, y) => x.a - y.a);
-      let lastLabelBottom = -999;
-      for (const blk of dayBlocks) {
-        const top = blk.a * ch, height = (blk.b - blk.a) * ch;
+        const a = hmToSlot(r.ora_inizio), b = hmToSlot(r.ora_fine);
         const el = document.createElement('div'); el.className = 'ov-block';
-        el.style.top = top + 'px'; el.style.height = height + 'px';
-        el.style.background = hexToRgba(blk.color, 0.30);
+        el.style.top = (a * ch) + 'px'; el.style.height = ((b - a) * ch) + 'px';
+        el.style.background = hexToRgba(u ? u.colore : '#cccccc', 0.30);
         col.appendChild(el);
-        const ly = Math.max(top + 1, lastLabelBottom + 2);
-        if (ly + 12 <= top + height) {
-          const lab = document.createElement('div'); lab.className = 'ov-name';
-          lab.textContent = blk.label; lab.style.top = ly + 'px'; lab.style.color = blk.color;
-          col.appendChild(lab);
-          lastLabelBottom = ly + 12;
-        }
       }
-      // evidenza "ci siamo tutti"
-      for (const [a, b] of ov.byDay[d].ranges) {
-        const full = document.createElement('div'); full.className = 'ov-full';
-        full.style.top = (a * ch) + 'px'; full.style.height = ((b - a) * ch) + 'px';
-        full.innerHTML = `${slotHM(a)}<br>${slotHM(b)}`;
-        col.appendChild(full);
+      // bande di incrocio (>=2 musicisti): verde + icone strumenti; se ci sono TUTTI -> verde forte + orario
+      for (const sg of ov.byDay[d].segs) {
+        const icons = sg.users.map(e => { const u = state.usersByEmail[e]; return u ? strumEmoji(u.strumento) : '🎵'; }).join('');
+        const band = document.createElement('div');
+        band.className = 'ov-band' + (sg.isFull ? ' full' : '');
+        band.style.top = (sg.a * ch) + 'px'; band.style.height = ((sg.b - sg.a) * ch) + 'px';
+        band.innerHTML = sg.isFull
+          ? `<div class="iconz">${icons}</div><div class="tt">${slotHM(sg.a)}–${slotHM(sg.b)}</div>`
+          : `<div class="iconz">${icons}</div>`;
+        col.appendChild(band);
       }
     }
     renderLegend(ov.responders);
@@ -459,7 +452,8 @@
     try { const r = await Promise.all([DB.weekAvailabilities(state.curMonday), refreshUsers()]); rows = r[0]; }
     catch (e) { toast('Errore nel caricamento', true); console.error(e); }
     const ov = computeOverlap(rows);
-    renderSummary($('list-content'), ov.byDay.filter(x => x.ranges.length), ov.responders, ov.R, ov.best);
+    const summaryDays = ov.byDay.map(x => ({ d: x.d, ranges: x.segs.filter(s => s.isFull).map(s => [s.a, s.b]) })).filter(x => x.ranges.length);
+    renderSummary($('list-content'), summaryDays, ov.responders, ov.R, ov.best);
   }
 
   function renderLegend(responders) {
@@ -469,7 +463,7 @@
       const me = DB.lower(u.email) === DB.lower(state.me.email);
       const absent = !set.has(DB.lower(u.email));
       const name = u.nome || u.email.split('@')[0];
-      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${strumEmoji(u.strumento)} ${me ? '<b>' + name + '</b>' : name}</span>`;
+      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name} ${strumEmoji(u.strumento)}</span>`;
     }).join('');
   }
 
