@@ -41,7 +41,7 @@
     view: 'mine', mineStrips: [], mineKey: null, dirty: false,
     channel: null, _initedFor: null, _allTimer: null,
     _localSha: null, _updateAvail: false, _toastDismissed: false, _verChannel: null, _verPollId: null,
-    editMode: false, paintingActive: false
+    editMode: false, paintingActive: false, _slideDir: null
   };
 
   // ---------- toast ----------
@@ -146,9 +146,10 @@
       : `${a.getDate()} ${MESI[a.getMonth()]} – ${b.getDate()} ${MESI[b.getMonth()]}`;
     $('week-label').textContent = label;
   }
-  function setWeek(monday) {
+  function setWeek(monday, dir) {
     if (state.view === 'mine' && state.dirty && !confirm('Hai modifiche non salvate in questa settimana. Cambiare comunque?')) return;
     state.curMonday = monday; state.mineKey = null; state.editMode = false;
+    state._slideDir = (dir && (state.view === 'mine' || state.view === 'all')) ? dir : null;
     updateWeekLabel(); reloadCurrentView();
   }
   function reloadCurrentView() {
@@ -156,6 +157,15 @@
     else if (state.view === 'all') loadAll();
     else if (state.view === 'list') loadList();
     else loadAdmin();
+  }
+  // animazione di scorrimento al cambio settimana
+  function applySlide(container) {
+    if (!state._slideDir) return;
+    const cal = container.querySelector('.cal'); if (!cal) return;
+    const cls = state._slideDir === 'next' ? 'slide-next' : 'slide-prev';
+    cal.classList.add(cls);
+    cal.addEventListener('animationend', () => cal.classList.remove(cls), { once: true });
+    state._slideDir = null;
   }
 
   // ============================================================
@@ -222,6 +232,7 @@
     renderMineStrips();
     updateEditUI();
     centerOn14(calMine);
+    applySlide(calMine);
   }
 
   function setDirty(b) { state.dirty = b; $('save-dot').classList.toggle('hidden', !b); }
@@ -380,6 +391,7 @@
     } catch (e) { toast('Errore nel caricamento', true); console.error(e); }
     renderOverview(rows);
     centerOn14(calAll);
+    applySlide(calAll);
   }
 
   async function refreshUsers() {
@@ -532,7 +544,7 @@
     el.addEventListener('touchend', (e) => {
       if (!ok) return; ok = false;
       const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8) setWeek(addDays(state.curMonday, dx < 0 ? 7 : -7));
+      if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8) setWeek(addDays(state.curMonday, dx < 0 ? 7 : -7), dx < 0 ? 'next' : 'prev');
     }, { passive: true });
   }
 
@@ -675,8 +687,8 @@
     $('update-toast-x').addEventListener('click', () => { state._toastDismissed = true; refreshUpdateToast(); });
 
     // settimana
-    $('btn-prev').addEventListener('click', () => setWeek(addDays(state.curMonday, -7)));
-    $('btn-next').addEventListener('click', () => setWeek(addDays(state.curMonday, 7)));
+    $('btn-prev').addEventListener('click', () => setWeek(addDays(state.curMonday, -7), 'prev'));
+    $('btn-next').addEventListener('click', () => setWeek(addDays(state.curMonday, 7), 'next'));
     $('btn-today').addEventListener('click', () => setWeek(startOfWeek(new Date())));
 
     // tab

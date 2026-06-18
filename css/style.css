@@ -301,3 +301,9 @@ input[type="color"] { background: none; }
 .tap-row .em { font-size: 18px; }
 .tap-row .nm { font-weight: 600; flex: 1 1 auto; }
 .tap-row .tap-time { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+
+/* ---- Transizione di scorrimento al cambio settimana ---- */
+@keyframes calSlideNext { from { transform: translateX(100%); opacity: .55; } to { transform: translateX(0); opacity: 1; } }
+@keyframes calSlidePrev { from { transform: translateX(-100%); opacity: .55; } to { transform: translateX(0); opacity: 1; } }
+.cal.slide-next { animation: calSlideNext .26s cubic-bezier(.22,.61,.36,1); }
+.cal.slide-prev { animation: calSlidePrev .26s cubic-bezier(.22,.61,.36,1); }
