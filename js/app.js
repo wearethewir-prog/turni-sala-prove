@@ -7,8 +7,8 @@
   const SLOTS = (24 * 60) / SLOT_MIN;             // 48
   const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
   const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-  const PASTELS = ['#FFB3BA', '#FFD8A8', '#FFF3A8', '#C8F7C5', '#B5E6FF', '#D5BAFF',
-                   '#FFC2E2', '#B8F0E0', '#FFCDA8', '#C9D2FF', '#E6C9A8', '#A8E6CF'];
+  const PASTELS = ['#FF8A8A', '#FFB36B', '#FFD96B', '#A6E3A1', '#6FD6C7', '#FF9FC4',
+                   '#E0A96D', '#CFCFCF', '#9BE38B', '#FFC1A1', '#7FD1C1', '#D4A373'];
 
   const $ = (id) => document.getElementById(id);
   const pad2 = (n) => String(n).padStart(2, '0');
