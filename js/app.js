@@ -7,6 +7,7 @@
   const SLOTS = (24 * 60) / SLOT_MIN;             // 48
   const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
   const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const MESI_FULL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
   const PASTELS = ['#FF8A8A', '#FFB36B', '#FFD96B', '#A6E3A1', '#6FD6C7', '#FF9FC4',
                    '#E0A96D', '#CFCFCF', '#9BE38B', '#FFC1A1', '#7FD1C1', '#D4A373'];
   const STRUMENTI = [
@@ -448,14 +449,58 @@
     renderLegend(ov.responders);
   }
 
-  // VISTA ELENCO: solo il riepilogo testuale della settimana
+  // segmenti (>=2 utenti coincidenti) di un singolo giorno
+  function daySegments(dayRows) {
+    const sets = [];
+    for (let s = 0; s < SLOTS; s++) {
+      const u = [];
+      for (const r of dayRows) { if (hmToSlot(r.ora_inizio) <= s && s < hmToSlot(r.ora_fine)) u.push(DB.lower(r.user_email)); }
+      sets.push([...new Set(u)]);
+    }
+    const segs = []; let i = 0;
+    while (i < SLOTS) {
+      if (sets[i].length < 2) { i++; continue; }
+      const key = [...sets[i]].sort().join('|'); let j = i + 1;
+      while (j < SLOTS && [...sets[j]].sort().join('|') === key) j++;
+      segs.push({ a: i, b: j, users: sets[i].slice() });
+      i = j;
+    }
+    return segs;
+  }
+
+  // VISTA ELENCO: dal giorno odierno in avanti, una riga per giorno con >=2 musicisti, raggruppata per mese
   async function loadList() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     let rows = [];
-    try { const r = await Promise.all([DB.weekAvailabilities(state.curMonday), refreshUsers()]); rows = r[0]; }
+    try { const r = await Promise.all([DB.availabilitiesFrom(today), refreshUsers()]); rows = r[0]; }
     catch (e) { toast('Errore nel caricamento', true); console.error(e); }
-    const ov = computeOverlap(rows);
-    const summaryDays = ov.byDay.map(x => ({ d: x.d, ranges: x.segs.filter(s => s.isFull).map(s => [s.a, s.b]) })).filter(x => x.ranges.length);
-    renderSummary($('list-content'), summaryDays, ov.responders, ov.R, ov.best);
+    renderElenco(rows);
+  }
+
+  function renderElenco(rows) {
+    const activeEmails = Object.values(state.usersByEmail).filter(u => u.attivo).map(u => DB.lower(u.email));
+    const byDay = {};
+    for (const r of rows) (byDay[r.giorno] = byDay[r.giorno] || []).push(r);
+    const giorni = Object.keys(byDay).sort();
+    let html = '<h3>🗒️ Prossime disponibilità</h3>';
+    let curMonth = null, any = false;
+    for (const g of giorni) {
+      const segs = daySegments(byDay[g]);
+      if (!segs.length) continue;
+      let best = segs[0]; for (const sg of segs) if (sg.users.length > best.users.length) best = sg;
+      const fullSeg = (activeEmails.length >= 2) ? segs.find(sg => activeEmails.every(e => sg.users.includes(e))) : null;
+      const show = fullSeg || best;
+      const dt = parseDate(g);
+      const mk = dt.getFullYear() + '-' + dt.getMonth();
+      if (mk !== curMonth) { curMonth = mk; html += `<div class="el-month">${MESI_FULL[dt.getMonth()].toUpperCase()}</div>`; }
+      const count = show.users.length;
+      const icons = show.users.map(e => { const u = state.usersByEmail[e]; return u ? strumEmoji(u.strumento) : '🎵'; }).join('');
+      const dayName = DAYS[(dt.getDay() + 6) % 7];
+      html += `<div class="el-row${fullSeg ? ' full' : ''}"><span class="el-day">${dayName} ${dt.getDate()}</span><span class="el-info">${fullSeg ? 'tutti' : count} · ${slotHM(show.a)}–${slotHM(show.b)}</span><span class="el-icons">${icons}</span></div>`;
+      any = true;
+    }
+    if (!any) html += '<div class="empty">Nessun giorno con almeno 2 musicisti insieme, da oggi in avanti.</div>';
+    $('list-content').innerHTML = html;
   }
 
   function renderLegend(responders) {

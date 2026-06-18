@@ -55,6 +55,12 @@
       if (error) throw error; return data || [];
     },
 
+    // disponibilità dal giorno indicato in avanti (per la vista Elenco)
+    async availabilitiesFrom(fromDate) {
+      const { data, error } = await sb.from('disponibilita').select('*').gte('giorno', dstr(fromDate));
+      if (error) throw error; return data || [];
+    },
+
     // salva la settimana dell'utente (cancella + reinserisce)
     async saveMyWeek(email, monday, rows) {
       const sun = new Date(monday); sun.setDate(sun.getDate() + 6);
