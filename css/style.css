@@ -287,7 +287,7 @@ input[type="color"] { background: none; }
 .el-row.full { border-color: #2bd46a; box-shadow: 0 0 9px rgba(38,209,103,.4); }
 .el-day { font-weight: 700; font-size: 14px; flex: 0 0 auto; min-width: 58px; }
 .el-info { font-size: 12.5px; color: var(--muted); flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.el-icons { font-size: 19px; flex: 0 0 auto; letter-spacing: 2px; }
+.el-icons { display: flex; gap: 2px; align-items: center; flex: 0 0 auto; }
 .lg-strum { font-size: 15px; }
 
 /* ---- Toast info disponibilità (tap su un rettangolo in "Tutti") ---- */
@@ -307,3 +307,10 @@ input[type="color"] { background: none; }
 @keyframes calSlidePrev { from { transform: translateX(-100%); opacity: .55; } to { transform: translateX(0); opacity: 1; } }
 .cal.slide-next { animation: calSlideNext .26s cubic-bezier(.22,.61,.36,1); }
 .cal.slide-prev { animation: calSlidePrev .26s cubic-bezier(.22,.61,.36,1); }
+
+/* ---- Icone strumenti (Twemoji): cartoon, sempre visibili, grandi ---- */
+.strum-ico { display: inline-block; vertical-align: middle; width: 20px; height: 20px; }
+.ov-band .iconz .strum-ico { width: 22px; height: 22px; margin: 1px; }
+.el-icons .strum-ico { width: 23px; height: 23px; }
+.lg-strum .strum-ico { width: 18px; height: 18px; }
+.tap-row .em .strum-ico { width: 26px; height: 26px; }

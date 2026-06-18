@@ -21,6 +21,12 @@
     sel.innerHTML = STRUMENTI.map(s => `<option value="${s[0]}">${s[1]} ${s[2]}</option>`).join('');
     sel.value = value || 'chitarra';
   }
+  // icona strumento come immagine Twemoji (cartoon, uguale su ogni dispositivo, scalabile)
+  const TWEMOJI = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
+  function strumIco(key) {
+    const cp = strumEmoji(key).codePointAt(0).toString(16);
+    return `<img class="strum-ico" src="${TWEMOJI}${cp}.svg" alt="">`;
+  }
 
   const $ = (id) => document.getElementById(id);
   const pad2 = (n) => String(n).padStart(2, '0');
@@ -448,7 +454,7 @@
       }
       // bande di incrocio (>=2 musicisti): verde + icone strumenti; se ci sono TUTTI -> verde forte + orario
       for (const sg of ov.byDay[d].segs) {
-        const icons = sg.users.map(e => { const u = state.usersByEmail[e]; return u ? strumEmoji(u.strumento) : '🎵'; }).join('');
+        const icons = sg.users.map(e => { const u = state.usersByEmail[e]; return strumIco(u ? u.strumento : 'altro'); }).join('');
         const band = document.createElement('div');
         band.className = 'ov-band' + (sg.isFull ? ' full' : '');
         band.style.top = (sg.a * ch) + 'px'; band.style.height = ((sg.b - sg.a) * ch) + 'px';
@@ -513,7 +519,7 @@
       const mk = dt.getFullYear() + '-' + dt.getMonth();
       if (mk !== curMonth) { curMonth = mk; html += `<div class="el-month">${MESI_FULL[dt.getMonth()].toUpperCase()}</div>`; }
       const count = show.users.length;
-      const icons = show.users.map(e => { const u = state.usersByEmail[e]; return u ? strumEmoji(u.strumento) : '🎵'; }).join('');
+      const icons = show.users.map(e => { const u = state.usersByEmail[e]; return strumIco(u ? u.strumento : 'altro'); }).join('');
       const dayName = DAYS[(dt.getDay() + 6) % 7];
       html += `<div class="el-row${fullSeg ? ' full' : ''}"><span class="el-day">${dayName} ${dt.getDate()}</span><span class="el-info">${fullSeg ? 'tutti' : count} · ${slotHM(show.a)}–${slotHM(show.b)}</span><span class="el-icons">${icons}</span></div>`;
       any = true;
@@ -529,8 +535,8 @@
     for (const r of rows) {
       const u = state.usersByEmail[DB.lower(r.user_email)];
       const color = u ? u.colore : '#cccccc';
-      const emoji = u ? strumEmoji(u.strumento) : '🎵';
-      html += `<div class="tap-row"><span class="dot" style="background:${color}"></span><span class="em">${emoji}</span><span class="nm">${nameOf(r.user_email)}</span><span class="tap-time">${r.ora_inizio.slice(0, 5)}–${r.ora_fine.slice(0, 5)}</span></div>`;
+      const ico = strumIco(u ? u.strumento : 'altro');
+      html += `<div class="tap-row"><span class="dot" style="background:${color}"></span><span class="em">${ico}</span><span class="nm">${nameOf(r.user_email)}</span><span class="tap-time">${r.ora_inizio.slice(0, 5)}–${r.ora_fine.slice(0, 5)}</span></div>`;
     }
     $('tap-body').innerHTML = html;
     $('tap-modal').classList.remove('hidden');
@@ -555,7 +561,7 @@
       const me = DB.lower(u.email) === DB.lower(state.me.email);
       const absent = !set.has(DB.lower(u.email));
       const name = u.nome || u.email.split('@')[0];
-      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name} <span class="lg-strum">${strumEmoji(u.strumento)}</span></span>`;
+      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name} <span class="lg-strum">${strumIco(u.strumento)}</span></span>`;
     }).join('');
   }
 
