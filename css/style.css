@@ -265,3 +265,10 @@ input[type="color"] { background: none; }
 .update-toast .ut-title { color: var(--ink); }
 .update-overlay { background: linear-gradient(135deg, #1a1a1a, #070707); }
 .uo-spinner { border-top-color: #ffffff; }
+
+/* ---- Selettore strumento + vista Elenco ---- */
+.strum-sel { padding: 9px 6px; border-radius: 8px; font-size: 14px; max-width: 132px; }
+.admin-form-row { flex-wrap: wrap; }
+.user-row { flex-wrap: wrap; row-gap: 8px; }
+.user-row .strum-sel { flex: 0 0 auto; padding: 7px 4px; font-size: 13px; max-width: 116px; }
+.summary.list-full { max-height: none; flex: 1 1 auto; min-height: 0; border-top: none; }

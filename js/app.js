@@ -9,6 +9,17 @@
   const MESI = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
   const PASTELS = ['#FF8A8A', '#FFB36B', '#FFD96B', '#A6E3A1', '#6FD6C7', '#FF9FC4',
                    '#E0A96D', '#CFCFCF', '#9BE38B', '#FFC1A1', '#7FD1C1', '#D4A373'];
+  const STRUMENTI = [
+    ['chitarra', '🎸', 'Chitarra'], ['basso', '🎸', 'Basso'], ['batteria', '🥁', 'Batteria'],
+    ['voce', '🎤', 'Voce'], ['tastiere', '🎹', 'Tastiere'], ['violino', '🎻', 'Violino'],
+    ['sax', '🎷', 'Sax'], ['tromba', '🎺', 'Tromba'], ['fisarmonica', '🪗', 'Fisarmonica'],
+    ['altro', '🎵', 'Altro']
+  ];
+  const strumEmoji = (k) => { const f = STRUMENTI.find(s => s[0] === k); return f ? f[1] : '🎵'; };
+  function fillStrumentoSelect(sel, value) {
+    sel.innerHTML = STRUMENTI.map(s => `<option value="${s[0]}">${s[1]} ${s[2]}</option>`).join('');
+    sel.value = value || 'chitarra';
+  }
 
   const $ = (id) => document.getElementById(id);
   const pad2 = (n) => String(n).padStart(2, '0');
@@ -72,10 +83,10 @@
     updateWeekLabel();
     if (!state.channel) {
       state.channel = DB.subscribeDisponibilita(() => {
-        if (state.view === 'all') { clearTimeout(state._allTimer); state._allTimer = setTimeout(loadAll, 350); }
+        if (state.view === 'all' || state.view === 'list') { clearTimeout(state._allTimer); state._allTimer = setTimeout(reloadCurrentView, 350); }
       });
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && state.view === 'all') loadAll();
+        if (document.visibilityState === 'visible' && (state.view === 'all' || state.view === 'list')) reloadCurrentView();
       });
     }
     startVersionCheck();
@@ -142,6 +153,7 @@
   function reloadCurrentView() {
     if (state.view === 'mine') loadMine();
     else if (state.view === 'all') loadAll();
+    else if (state.view === 'list') loadList();
     else loadAdmin();
   }
 
@@ -373,43 +385,15 @@
     return users;
   }
 
-  function renderOverview(rows) {
-    const ch = cellH(calAll);
-    // responders della settimana
+  // calcola sovrapposizioni della settimana (condiviso tra vista "Tutti" ed "Elenco")
+  function computeOverlap(rows) {
     const responders = [...new Set(rows.map(r => DB.lower(r.user_email)))];
     const R = responders.length;
     const fullEnabled = R >= 2;
-    const summaryDays = [];
-    let best = { count: 0 };
-
+    const byDay = []; let best = { count: 0 };
     for (let d = 0; d < 7; d++) {
-      const col = colByDay(calAll, d); if (!col) continue;
       const dayStr = DB.dstr(addDays(state.curMonday, d));
       const dayRows = rows.filter(r => r.giorno === dayStr);
-
-      // blocchi colorati per utente (colore configurato) + etichetta nome in cima
-      const dayBlocks = dayRows.map(r => {
-        const u = state.usersByEmail[DB.lower(r.user_email)];
-        return { color: u ? u.colore : '#cccccc', name: shortName(u, r.user_email), a: hmToSlot(r.ora_inizio), b: hmToSlot(r.ora_fine) };
-      }).sort((x, y) => x.a - y.a);
-      let lastLabelBottom = -999;
-      for (const blk of dayBlocks) {
-        const top = blk.a * ch, height = (blk.b - blk.a) * ch;
-        const el = document.createElement('div'); el.className = 'ov-block';
-        el.style.top = top + 'px'; el.style.height = height + 'px';
-        el.style.background = hexToRgba(blk.color, 0.5);
-        col.appendChild(el);
-        // nome in cima, spostato in basso se si sovrappone a un'altra etichetta
-        const ly = Math.max(top + 1, lastLabelBottom + 2);
-        if (ly + 12 <= top + height) {
-          const lab = document.createElement('div'); lab.className = 'ov-name';
-          lab.textContent = blk.name; lab.style.top = ly + 'px'; lab.style.color = blk.color;
-          col.appendChild(lab);
-          lastLabelBottom = ly + 12;
-        }
-      }
-
-      // conteggio per slot
       const count = new Array(SLOTS).fill(0);
       for (let s = 0; s < SLOTS; s++) {
         const here = new Set();
@@ -417,28 +401,65 @@
         count[s] = here.size;
         if (here.size > best.count) best = { count: here.size, day: d, slot: s };
       }
-
-      // run contigui dove ci siamo tutti (= R)
+      const ranges = [];
       if (fullEnabled) {
-        const ranges = [];
         let run = null;
         for (let s = 0; s < SLOTS; s++) {
           if (count[s] === R) { if (!run) run = [s, s + 1]; else run[1] = s + 1; }
           else if (run) { ranges.push(run); run = null; }
         }
         if (run) ranges.push(run);
-        for (const [a, b] of ranges) {
-          const full = document.createElement('div'); full.className = 'ov-full';
-          full.style.top = (a * ch) + 'px'; full.style.height = ((b - a) * ch) + 'px';
-          full.innerHTML = `${slotHM(a)}<br>${slotHM(b)}`;
-          col.appendChild(full);
+      }
+      byDay.push({ d, ranges });
+    }
+    return { responders, R, fullEnabled, byDay, best };
+  }
+
+  function renderOverview(rows) {
+    const ch = cellH(calAll);
+    const ov = computeOverlap(rows);
+    for (let d = 0; d < 7; d++) {
+      const col = colByDay(calAll, d); if (!col) continue;
+      const dayStr = DB.dstr(addDays(state.curMonday, d));
+      const dayRows = rows.filter(r => r.giorno === dayStr);
+      // blocchi per utente: colore configurato (più trasparente) + nome e strumento in cima
+      const dayBlocks = dayRows.map(r => {
+        const u = state.usersByEmail[DB.lower(r.user_email)];
+        return { color: u ? u.colore : '#cccccc', label: (u ? strumEmoji(u.strumento) : '🎵') + ' ' + shortName(u, r.user_email), a: hmToSlot(r.ora_inizio), b: hmToSlot(r.ora_fine) };
+      }).sort((x, y) => x.a - y.a);
+      let lastLabelBottom = -999;
+      for (const blk of dayBlocks) {
+        const top = blk.a * ch, height = (blk.b - blk.a) * ch;
+        const el = document.createElement('div'); el.className = 'ov-block';
+        el.style.top = top + 'px'; el.style.height = height + 'px';
+        el.style.background = hexToRgba(blk.color, 0.30);
+        col.appendChild(el);
+        const ly = Math.max(top + 1, lastLabelBottom + 2);
+        if (ly + 12 <= top + height) {
+          const lab = document.createElement('div'); lab.className = 'ov-name';
+          lab.textContent = blk.label; lab.style.top = ly + 'px'; lab.style.color = blk.color;
+          col.appendChild(lab);
+          lastLabelBottom = ly + 12;
         }
-        if (ranges.length) summaryDays.push({ d, ranges });
+      }
+      // evidenza "ci siamo tutti"
+      for (const [a, b] of ov.byDay[d].ranges) {
+        const full = document.createElement('div'); full.className = 'ov-full';
+        full.style.top = (a * ch) + 'px'; full.style.height = ((b - a) * ch) + 'px';
+        full.innerHTML = `${slotHM(a)}<br>${slotHM(b)}`;
+        col.appendChild(full);
       }
     }
+    renderLegend(ov.responders);
+  }
 
-    renderLegend(responders);
-    renderSummary(summaryDays, responders, R, best);
+  // VISTA ELENCO: solo il riepilogo testuale della settimana
+  async function loadList() {
+    let rows = [];
+    try { const r = await Promise.all([DB.weekAvailabilities(state.curMonday), refreshUsers()]); rows = r[0]; }
+    catch (e) { toast('Errore nel caricamento', true); console.error(e); }
+    const ov = computeOverlap(rows);
+    renderSummary($('list-content'), ov.byDay.filter(x => x.ranges.length), ov.responders, ov.R, ov.best);
   }
 
   function renderLegend(responders) {
@@ -448,7 +469,7 @@
       const me = DB.lower(u.email) === DB.lower(state.me.email);
       const absent = !set.has(DB.lower(u.email));
       const name = u.nome || u.email.split('@')[0];
-      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name}</span>`;
+      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${strumEmoji(u.strumento)} ${me ? '<b>' + name + '</b>' : name}</span>`;
     }).join('');
   }
 
@@ -457,14 +478,14 @@
     const n = (u && u.nome && u.nome.trim()) ? u.nome.trim().split(/\s+/)[0] : email.split('@')[0];
     return n.length > 8 ? n.slice(0, 8) : n;
   }
+  function whoLabel(email) { const u = state.usersByEmail[DB.lower(email)]; return (u ? strumEmoji(u.strumento) + ' ' : '') + nameOf(email); }
 
-  function renderSummary(summaryDays, responders, R, best) {
-    const box = $('summary');
+  function renderSummary(box, summaryDays, responders, R, best) {
     let html = '<h3>📋 Quando ci siamo</h3>';
     if (R === 0) { html += '<div class="empty">Nessuno ha ancora inserito disponibilità questa settimana.</div>'; box.innerHTML = html; return; }
-    if (R === 1) { html += `<div class="empty">Solo <b>${nameOf(responders[0])}</b> ha inserito disponibilità. Servono almeno 2 persone per trovare un incrocio.</div>`; box.innerHTML = html; return; }
+    if (R === 1) { html += `<div class="empty">Solo <b>${whoLabel(responders[0])}</b> ha inserito disponibilità. Servono almeno 2 persone per trovare un incrocio.</div>`; box.innerHTML = html; return; }
 
-    const whoAll = responders.map(nameOf).join(', ');
+    const whoAll = responders.map(whoLabel).join(', ');
     if (summaryDays.length === 0) {
       html += `<div class="empty">Nessun orario in cui ci siete <b>tutti e ${R}</b> (${whoAll}).</div>`;
       if (best.count >= 2) html += `<div class="best">Massimo finora: <b>${best.count} persone</b> insieme ${DAYS[best.day]} verso le ${slotHM(best.slot)}.</div>`;
@@ -493,6 +514,7 @@
     try { users = await refreshUsers(); } catch (e) { toast('Errore', true); }
     renderUserList(users);
     $('u-colore').value = nextPastel(users);
+    fillStrumentoSelect($('u-strumento'), 'chitarra');
   }
 
   function renderUserList(users) {
@@ -503,12 +525,17 @@
       const row = document.createElement('div'); row.className = 'user-row';
       const name = u.nome || u.email.split('@')[0];
       row.innerHTML = `
-        <input type="color" class="dot" value="${u.colore}" title="Cambia colore">
+        <input type="color" class="dot" value="${u.colore}" title="Colore">
+        <select class="strum-sel" title="Strumento"></select>
         <div class="info"><div class="n">${name}</div><div class="e">${u.email}</div></div>
         <span class="tag ${u.attivo ? '' : 'off'}">${u.ruolo === 'admin' ? 'admin' : (u.attivo ? 'attivo' : 'disattivo')}</span>`;
-      // colore
       row.querySelector('input[type=color]').addEventListener('change', async (ev) => {
         try { await DB.updateUser(u.email, { colore: ev.target.value }); toast('Colore aggiornato'); }
+        catch (e) { toast('Errore', true); }
+      });
+      const ssel = row.querySelector('.strum-sel'); fillStrumentoSelect(ssel, u.strumento || 'chitarra');
+      ssel.addEventListener('change', async (ev) => {
+        try { await DB.updateUser(u.email, { strumento: ev.target.value }); toast('Strumento aggiornato'); }
         catch (e) { toast('Errore', true); }
       });
       if (isPerma) {
@@ -529,7 +556,7 @@
     const nome = $('u-nome').value.trim(), email = $('u-email').value.trim();
     if (!email) { toast('Inserisci un\'email', true); return; }
     try {
-      await DB.addUser({ nome, email, colore: $('u-colore').value, ruolo: $('u-ruolo').value });
+      await DB.addUser({ nome, email, colore: $('u-colore').value, strumento: $('u-strumento').value, ruolo: $('u-ruolo').value });
       $('u-nome').value = ''; $('u-email').value = ''; $('u-ruolo').value = 'membro';
       toast('Membro aggiunto ✓'); loadAdmin();
     } catch (err) {
@@ -545,12 +572,15 @@
     state.view = v;
     $('view-mine').classList.toggle('hidden', v !== 'mine');
     $('view-all').classList.toggle('hidden', v !== 'all');
+    $('view-list').classList.toggle('hidden', v !== 'list');
     $('view-admin').classList.toggle('hidden', v !== 'admin');
     $('tab-mine').classList.toggle('active', v === 'mine');
     $('tab-all').classList.toggle('active', v === 'all');
+    $('tab-list').classList.toggle('active', v === 'list');
     $('tab-admin').classList.toggle('active', v === 'admin');
     if (v === 'mine') loadMine();
     else if (v === 'all') loadAll();
+    else if (v === 'list') loadList();
     else loadAdmin();
     refreshUpdateToast();
   }
@@ -578,6 +608,7 @@
     // tab
     $('tab-mine').addEventListener('click', () => showView('mine'));
     $('tab-all').addEventListener('click', () => showView('all'));
+    $('tab-list').addEventListener('click', () => showView('list'));
     $('tab-admin').addEventListener('click', () => showView('admin'));
 
     // inserisci / salva (toggle modalità)

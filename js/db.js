@@ -37,7 +37,7 @@
       if (error) throw error; return data || [];
     },
     async addUser(u) {
-      const row = { email: lower(u.email), nome: u.nome || '', colore: u.colore, ruolo: u.ruolo || 'membro', attivo: true };
+      const row = { email: lower(u.email), nome: u.nome || '', colore: u.colore, strumento: u.strumento || 'chitarra', ruolo: u.ruolo || 'membro', attivo: true };
       const { error } = await sb.from('utenti_autorizzati').insert(row); if (error) throw error;
     },
     async updateUser(email, patch) {

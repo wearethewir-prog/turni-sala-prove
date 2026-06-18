@@ -8,6 +8,7 @@ create table if not exists public.utenti_autorizzati (
   email      text primary key,
   nome       text not null default '',
   colore     text not null default '#BAE1FF',
+  strumento  text not null default 'chitarra',
   ruolo      text not null default 'membro' check (ruolo in ('admin','membro')),
   attivo     boolean not null default true,
   created_at timestamptz not null default now()
@@ -70,8 +71,8 @@ create trigger trg_proteggi_admin
   for each row execute function public.proteggi_admin();
 
 -- ---------- Seed admin perpetuo ----------
-insert into public.utenti_autorizzati (email, nome, colore, ruolo, attivo)
-values ('marabelli.s@gmail.com', 'Stefano Marabelli', '#FF8A8A', 'admin', true)
+insert into public.utenti_autorizzati (email, nome, colore, strumento, ruolo, attivo)
+values ('marabelli.s@gmail.com', 'Stefano Marabelli', '#FF8A8A', 'chitarra', 'admin', true)
 on conflict (email) do update set ruolo = 'admin', attivo = true;
 
 -- ---------- Row Level Security ----------
