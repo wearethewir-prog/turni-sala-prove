@@ -16,7 +16,7 @@ create table if not exists public.utenti_autorizzati (
 
 create table if not exists public.disponibilita (
   id          uuid primary key default gen_random_uuid(),
-  user_email  text not null,
+  user_email  text not null references public.utenti_autorizzati(email) on update cascade on delete cascade,
   giorno      date not null,
   ora_inizio  time not null,
   ora_fine    time not null,
