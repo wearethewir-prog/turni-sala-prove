@@ -73,6 +73,7 @@
     subscribeDisponibilita(cb) {
       return sb.channel('disp-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'disponibilita' }, cb)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'utenti_autorizzati' }, cb)
         .subscribe();
     },
 

@@ -71,7 +71,10 @@
     updateWeekLabel();
     if (!state.channel) {
       state.channel = DB.subscribeDisponibilita(() => {
-        if (state.view === 'all') { clearTimeout(state._allTimer); state._allTimer = setTimeout(loadAll, 400); }
+        if (state.view === 'all') { clearTimeout(state._allTimer); state._allTimer = setTimeout(loadAll, 350); }
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && state.view === 'all') loadAll();
       });
     }
     startVersionCheck();
@@ -237,7 +240,7 @@
     state.mineStrips = state.mineStrips.filter(s => !(s.giorno === giorno && s.startSlot === a && s.endSlot === b));
   }
 
-  // ---------- controller disegno (long-press + drag) ----------
+  // ---------- controller disegno (trascina = disegna; colonne con touch-action:none) ----------
   function attachPaint(container) {
     let st = null;
     function slotFromY(col, y) { const r = col.getBoundingClientRect(); return Math.max(0, Math.min(SLOTS - 1, Math.floor((y - r.top) / (r.height / SLOTS)))); }
@@ -249,47 +252,36 @@
       sel.style.top = (a * ch) + 'px'; sel.style.height = ((b - a) * ch) + 'px';
       st.col.appendChild(sel);
     }
-    function begin() {
-      if (!st || st.onStrip) return;
-      st.painting = true; st.col.classList.add('painting');
-      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (_) {} }
-      try { st.col.setPointerCapture(st.pid); } catch (_) {}
-      showSel();
-    }
     function onDown(e) {
       if (e.button != null && e.button !== 0) return;
       const col = e.currentTarget;
       const stripEl = e.target.closest && e.target.closest('.strip');
       const s = slotFromY(col, e.clientY);
-      st = { col, day: +col.dataset.day, startSlot: s, curSlot: s, painting: false, sx: e.clientX, sy: e.clientY, pid: e.pointerId, onStrip: !!stripEl, stripEl };
-      if (stripEl) { /* tap su striscia: gestito al pointerup */ }
-      else if (e.pointerType === 'mouse') begin();
-      else st.timer = setTimeout(begin, 230);
+      st = { col, day: +col.dataset.day, startSlot: s, curSlot: s, sx: e.clientX, sy: e.clientY, pid: e.pointerId, onStrip: !!stripEl, stripEl, moved: false, painting: false };
+      if (!stripEl) {                 // niente striscia sotto: inizia subito a disegnare (la colonna non scrolla)
+        st.painting = true;
+        try { col.setPointerCapture(e.pointerId); } catch (_) {}
+        showSel();
+      }
       window.addEventListener('pointermove', onMove, { passive: false });
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     }
     function onMove(e) {
       if (!st) return;
-      if (!st.painting) {
-        if (Math.abs(e.clientX - st.sx) > 8 || Math.abs(e.clientY - st.sy) > 8) {
-          clearTimeout(st.timer);
-          if (e.pointerType !== 'mouse') cleanup(); // è uno scroll
-        }
-        return;
-      }
+      if (Math.abs(e.clientX - st.sx) > 6 || Math.abs(e.clientY - st.sy) > 6) st.moved = true;
+      if (!st.painting) return;
       e.preventDefault();
       st.curSlot = slotFromY(st.col, e.clientY);
       showSel();
     }
-    function onUp(e) {
+    function onUp() {
       if (!st) return;
-      clearTimeout(st.timer);
       if (st.painting) {
         const a = Math.min(st.startSlot, st.curSlot), b = Math.max(st.startSlot, st.curSlot) + 1;
-        const giorno = DB.dstr(addDays(state.curMonday, st.day));
-        addStripMerged(giorno, a, b); setDirty(true); renderMineStrips();
-      } else if (st.onStrip && Math.abs(e.clientX - st.sx) < 10 && Math.abs(e.clientY - st.sy) < 10) {
+        addStripMerged(DB.dstr(addDays(state.curMonday, st.day)), a, b);
+        setDirty(true); renderMineStrips();
+      } else if (st.onStrip && !st.moved) {
         openStripEditor(st.stripEl);
       }
       cleanup();
@@ -299,7 +291,6 @@
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       container.querySelectorAll('.selection').forEach(e => e.remove());
-      if (st && st.col) st.col.classList.remove('painting');
       st = null;
     }
     container.querySelectorAll('.cal-col').forEach(c => c.addEventListener('pointerdown', onDown));
