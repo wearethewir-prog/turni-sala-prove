@@ -11,7 +11,7 @@
   const PASTELS = ['#FF8A8A', '#FFB36B', '#FFD96B', '#A6E3A1', '#6FD6C7', '#FF9FC4',
                    '#E0A96D', '#CFCFCF', '#9BE38B', '#FFC1A1', '#7FD1C1', '#D4A373'];
   const STRUMENTI = [
-    ['chitarra', '🎸', 'Chitarra'], ['basso', '🎸', 'Basso'], ['batteria', '🥁', 'Batteria'],
+    ['chitarra', '🎸', 'Chitarra'], ['basso', '🪕', 'Basso'], ['batteria', '🥁', 'Batteria'],
     ['voce', '🎤', 'Voce'], ['tastiere', '🎹', 'Tastiere'], ['violino', '🎻', 'Violino'],
     ['sax', '🎷', 'Sax'], ['tromba', '🎺', 'Tromba'], ['fisarmonica', '🪗', 'Fisarmonica'],
     ['altro', '🎵', 'Altro']
@@ -510,7 +510,7 @@
       const me = DB.lower(u.email) === DB.lower(state.me.email);
       const absent = !set.has(DB.lower(u.email));
       const name = u.nome || u.email.split('@')[0];
-      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name} ${strumEmoji(u.strumento)}</span>`;
+      return `<span class="chip${absent ? ' absent' : ''}${me ? ' me' : ''}"><span class="dot" style="background:${u.colore}"></span>${me ? '<b>' + name + '</b>' : name} <span class="lg-strum">${strumEmoji(u.strumento)}</span></span>`;
     }).join('');
   }
 

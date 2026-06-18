@@ -276,7 +276,7 @@ input[type="color"] { background: none; }
 /* ---- Incroci verdi con icone strumenti + legenda in basso ---- */
 .legend { border-bottom: none; border-top: 1px solid var(--line-strong); }
 .ov-band { position: absolute; left: 1px; right: 1px; z-index: 4; border-radius: 5px; background: rgba(38,209,103,.24); display: flex; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; }
-.ov-band .iconz { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 0; font-size: 12px; line-height: 1.05; }
+.ov-band .iconz { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 0 1px; font-size: 17px; line-height: 1.05; }
 .ov-band.full { z-index: 6; flex-direction: column; gap: 1px; background: rgba(38,209,103,.5); border: 1.5px solid #2bd46a; box-shadow: 0 0 10px rgba(38,209,103,.45); }
 .ov-band.full .tt { font-size: 9px; font-weight: 800; color: #eaffef; }
 
@@ -287,4 +287,5 @@ input[type="color"] { background: none; }
 .el-row.full { border-color: #2bd46a; box-shadow: 0 0 9px rgba(38,209,103,.4); }
 .el-day { font-weight: 700; font-size: 14px; flex: 0 0 auto; min-width: 58px; }
 .el-info { font-size: 12.5px; color: var(--muted); flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.el-icons { font-size: 16px; flex: 0 0 auto; letter-spacing: 1px; }
+.el-icons { font-size: 19px; flex: 0 0 auto; letter-spacing: 2px; }
+.lg-strum { font-size: 15px; }
