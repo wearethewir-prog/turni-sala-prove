@@ -445,6 +445,13 @@
           : `<div class="iconz">${icons}</div>`;
         col.appendChild(band);
       }
+      // tap (senza scroll) sulla colonna -> mostra chi è disponibile in quella fascia
+      col.addEventListener('click', (e) => {
+        const rc = col.getBoundingClientRect();
+        const slot = Math.max(0, Math.min(SLOTS - 1, Math.floor((e.clientY - rc.top) / (rc.height / SLOTS))));
+        const here = dayRows.filter(x => hmToSlot(x.ora_inizio) <= slot && slot < hmToSlot(x.ora_fine));
+        if (here.length) showTapInfo(d, slot, here);
+      });
     }
     renderLegend(ov.responders);
   }
@@ -501,6 +508,32 @@
     }
     if (!any) html += '<div class="empty">Nessun giorno con almeno 2 musicisti insieme, da oggi in avanti.</div>';
     $('list-content').innerHTML = html;
+  }
+
+  // ---------- toast info: tap (senza scroll) su un rettangolo nella vista "Tutti" ----------
+  function showTapInfo(d, slot, rows) {
+    const dt = addDays(state.curMonday, d);
+    let html = `<h4>${DAYS[d]} ${dt.getDate()} ${MESI[dt.getMonth()]} · ${slotHM(slot)}</h4>`;
+    for (const r of rows) {
+      const u = state.usersByEmail[DB.lower(r.user_email)];
+      const color = u ? u.colore : '#cccccc';
+      const emoji = u ? strumEmoji(u.strumento) : '🎵';
+      html += `<div class="tap-row"><span class="dot" style="background:${color}"></span><span class="em">${emoji}</span><span class="nm">${nameOf(r.user_email)}</span><span class="tap-time">${r.ora_inizio.slice(0, 5)}–${r.ora_fine.slice(0, 5)}</span></div>`;
+    }
+    $('tap-body').innerHTML = html;
+    $('tap-modal').classList.remove('hidden');
+  }
+  function closeTap() { $('tap-modal').classList.add('hidden'); }
+
+  // ---------- swipe orizzontale per cambiare settimana (Le mie / Tutti) ----------
+  function attachSwipeWeek(el) {
+    let sx = 0, sy = 0, ok = false;
+    el.addEventListener('touchstart', (e) => { if (e.touches.length !== 1) { ok = false; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; ok = true; }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      if (!ok) return; ok = false;
+      const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8) setWeek(addDays(state.curMonday, dx < 0 ? 7 : -7));
+    }, { passive: true });
   }
 
   function renderLegend(responders) {
@@ -676,6 +709,12 @@
 
     // admin
     $('admin-form').addEventListener('submit', addUser);
+
+    // swipe orizzontale -> cambia settimana; toast info su tap (vista Tutti)
+    attachSwipeWeek($('view-mine'));
+    attachSwipeWeek($('view-all'));
+    $('tap-x').addEventListener('click', closeTap);
+    $('tap-modal').addEventListener('click', (e) => { if (e.target.id === 'tap-modal') closeTap(); });
   }
 
   function boot() {

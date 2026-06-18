@@ -149,6 +149,14 @@
     <div class="uo-text">Sto scaricando la nuova versione, attendi qualche secondo…</div>
   </div>
 
+  <!-- Toast info disponibilità (tap su un rettangolo in "Tutti") -->
+  <div id="tap-modal" class="tap-modal hidden">
+    <div class="tap-card">
+      <button id="tap-x" class="tap-x" aria-label="Chiudi">×</button>
+      <div id="tap-body"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/db.js"></script>
