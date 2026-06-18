@@ -247,7 +247,9 @@
       el.style.height = ((s.endSlot - s.startSlot) * ch) + 'px';
       el.dataset.giorno = s.giorno; el.dataset.start = s.startSlot; el.dataset.end = s.endSlot;
       const h = (s.endSlot - s.startSlot) * ch;
-      el.innerHTML = h >= 30 ? `${slotHM(s.startSlot)}<br><small>${slotHM(s.endSlot)}</small>` : `${slotHM(s.startSlot)}`;
+      el.innerHTML = h >= 30
+        ? `<span>${slotHM(s.startSlot)}</span><span>${slotHM(s.endSlot)}</span>`
+        : `<span>${slotHM(s.startSlot)}</span>`;
       col.appendChild(el);
     }
   }
@@ -438,7 +440,7 @@
         band.className = 'ov-band' + (sg.isFull ? ' full' : '');
         band.style.top = (sg.a * ch) + 'px'; band.style.height = ((sg.b - sg.a) * ch) + 'px';
         band.innerHTML = sg.isFull
-          ? `<div class="iconz">${icons}</div><div class="tt">${slotHM(sg.a)}–${slotHM(sg.b)}</div>`
+          ? `<div class="iconz">${icons}</div><div class="tt">${slotHM(sg.a)}<br>${slotHM(sg.b)}</div>`
           : `<div class="iconz">${icons}</div>`;
         col.appendChild(band);
       }
