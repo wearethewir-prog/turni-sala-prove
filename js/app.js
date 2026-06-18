@@ -28,7 +28,8 @@
     usersByEmail: {}, curMonday: startOfWeek(new Date()),
     view: 'mine', mineStrips: [], mineKey: null, dirty: false,
     channel: null, _initedFor: null, _allTimer: null,
-    _localSha: null, _updateAvail: false, _toastDismissed: false, _verChannel: null, _verPollId: null
+    _localSha: null, _updateAvail: false, _toastDismissed: false, _verChannel: null, _verPollId: null,
+    editMode: false, paintingActive: false
   };
 
   // ---------- toast ----------
@@ -135,7 +136,7 @@
   }
   function setWeek(monday) {
     if (state.view === 'mine' && state.dirty && !confirm('Hai modifiche non salvate in questa settimana. Cambiare comunque?')) return;
-    state.curMonday = monday; state.mineKey = null;
+    state.curMonday = monday; state.mineKey = null; state.editMode = false;
     updateWeekLabel(); reloadCurrentView();
   }
   function reloadCurrentView() {
@@ -206,10 +207,22 @@
       } catch (e) { toast('Errore nel caricamento', true); console.error(e); }
     }
     renderMineStrips();
+    updateEditUI();
     centerOn14(calMine);
   }
 
   function setDirty(b) { state.dirty = b; $('save-dot').classList.toggle('hidden', !b); }
+
+  function setEditMode(on) { state.editMode = on; updateEditUI(); }
+  function updateEditUI() {
+    const editing = state.editMode;
+    $('btn-save').classList.toggle('editing', editing);
+    $('cal-mine').classList.toggle('editing', editing);
+    $('save-label').textContent = editing ? 'Salva disponibilità' : 'Inserisci disponibilità';
+    $('mine-hint').innerHTML = editing
+      ? '✏️ Tieni premuto un attimo e <b>trascina</b> per segnare gli orari. Tocca una striscia per modificarla. Per scorrere, trascina con un tocco breve.'
+      : '👁 Modalità visualizzazione. Premi <b>“Inserisci disponibilità”</b> in basso per modificare.';
+  }
 
   function renderMineStrips() {
     calMine.querySelectorAll('.strip, .selection').forEach(e => e.remove());
@@ -240,7 +253,9 @@
     state.mineStrips = state.mineStrips.filter(s => !(s.giorno === giorno && s.startSlot === a && s.endSlot === b));
   }
 
-  // ---------- controller disegno (trascina = disegna; colonne con touch-action:none) ----------
+  // ---------- controller disegno (solo in modifica; tieni premuto poi trascina) ----------
+  const HOLD_MS = 600;   // attesa prima di iniziare a disegnare (sotto = scroll)
+  const MOVE_TOL = 10;   // px di tolleranza durante l'attesa
   function attachPaint(container) {
     let st = null;
     function slotFromY(col, y) { const r = col.getBoundingClientRect(); return Math.max(0, Math.min(SLOTS - 1, Math.floor((y - r.top) / (r.height / SLOTS)))); }
@@ -252,31 +267,41 @@
       sel.style.top = (a * ch) + 'px'; sel.style.height = ((b - a) * ch) + 'px';
       st.col.appendChild(sel);
     }
+    function begin() {
+      if (!st || st.onStrip) return;
+      st.painting = true; state.paintingActive = true;   // blocca lo scroll (vedi listener touchmove)
+      try { st.col.setPointerCapture(st.pid); } catch (_) {}
+      if (navigator.vibrate) { try { navigator.vibrate(18); } catch (_) {} }
+      showSel();
+    }
     function onDown(e) {
+      if (!state.editMode) return;                  // in visualizzazione: niente disegno, scroll normale
       if (e.button != null && e.button !== 0) return;
       const col = e.currentTarget;
       const stripEl = e.target.closest && e.target.closest('.strip');
       const s = slotFromY(col, e.clientY);
       st = { col, day: +col.dataset.day, startSlot: s, curSlot: s, sx: e.clientX, sy: e.clientY, pid: e.pointerId, onStrip: !!stripEl, stripEl, moved: false, painting: false };
-      if (!stripEl) {                 // niente striscia sotto: inizia subito a disegnare (la colonna non scrolla)
-        st.painting = true;
-        try { col.setPointerCapture(e.pointerId); } catch (_) {}
-        showSel();
-      }
+      if (stripEl) { /* tap su striscia -> modifica (al pointerup) */ }
+      else if (e.pointerType === 'mouse') begin();          // col mouse non c'è scroll: disegna subito
+      else st.timer = setTimeout(begin, HOLD_MS);            // touch: tieni premuto
       window.addEventListener('pointermove', onMove, { passive: false });
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     }
     function onMove(e) {
       if (!st) return;
-      if (Math.abs(e.clientX - st.sx) > 6 || Math.abs(e.clientY - st.sy) > 6) st.moved = true;
-      if (!st.painting) return;
+      if (Math.abs(e.clientX - st.sx) > MOVE_TOL || Math.abs(e.clientY - st.sy) > MOVE_TOL) st.moved = true;
+      if (!st.painting) {
+        if (st.moved) { clearTimeout(st.timer); cleanup(); }   // mosso prima del tempo -> è uno scroll
+        return;
+      }
       e.preventDefault();
       st.curSlot = slotFromY(st.col, e.clientY);
       showSel();
     }
     function onUp() {
       if (!st) return;
+      clearTimeout(st.timer);
       if (st.painting) {
         const a = Math.min(st.startSlot, st.curSlot), b = Math.max(st.startSlot, st.curSlot) + 1;
         addStripMerged(DB.dstr(addDays(state.curMonday, st.day)), a, b);
@@ -287,6 +312,7 @@
       cleanup();
     }
     function cleanup() {
+      state.paintingActive = false;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
@@ -321,7 +347,7 @@
     try {
       const rows = state.mineStrips.map(s => ({ giorno: s.giorno, ora_inizio: slotTime(s.startSlot), ora_fine: slotTime(s.endSlot) }));
       await DB.saveMyWeek(state.me.email, state.curMonday, rows);
-      setDirty(false); toast('Disponibilità salvate ✓');
+      setDirty(false); toast('Disponibilità salvate ✓'); setEditMode(false);
     } catch (e) { console.error(e); toast('Errore nel salvataggio', true); }
     finally { btn.disabled = false; }
   }
@@ -539,8 +565,14 @@
     $('tab-all').addEventListener('click', () => showView('all'));
     $('tab-admin').addEventListener('click', () => showView('admin'));
 
-    // salva
-    $('btn-save').addEventListener('click', saveMine);
+    // inserisci / salva (toggle modalità)
+    $('btn-save').addEventListener('click', () => {
+      if (!state.editMode) setEditMode(true);
+      else if (state.dirty) saveMine();
+      else setEditMode(false);
+    });
+    // blocca lo scroll della griglia SOLO mentre si sta disegnando
+    $('cal-mine').addEventListener('touchmove', (e) => { if (state.paintingActive) e.preventDefault(); }, { passive: false });
 
     // modal
     $('btn-m-cancel').addEventListener('click', closeModal);
