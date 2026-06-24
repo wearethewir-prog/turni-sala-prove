@@ -24,6 +24,7 @@
   // icona strumento come immagine Twemoji (cartoon, uguale su ogni dispositivo, scalabile)
   const TWEMOJI = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/';
   function strumIco(key) {
+    if (key === 'basso') return `<img class="strum-ico" src="icons/basso.png?v=4" alt="">`; // contrabbasso (niente emoji dedicata)
     const cp = strumEmoji(key).codePointAt(0).toString(16);
     return `<img class="strum-ico" src="${TWEMOJI}${cp}.svg" alt="">`;
   }
