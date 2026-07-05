@@ -1,0 +1,46 @@
+name: Keepalive
+
+# Un progetto Supabase free va in PAUSA dopo ~7 giorni di inattivita':
+# questo ping ogni 2 giorni tiene attivo il database.
+# In piu', se il repository resta fermo (nessun commit) per ~60 giorni,
+# GitHub disabilita i workflow schedulati: per evitarlo, se il repo e'
+# inattivo da 50+ giorni facciamo un piccolo commit di rinnovo.
+on:
+  schedule:
+    - cron: '30 6 */2 * *'   # ogni 2 giorni alle 06:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase (mantiene attivo il DB)
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "https://yaiarvzrjnxgbtrqjkfz.supabase.co/rest/v1/app_version?select=sha&id=eq.1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaWFydnpyam54Z2J0cnFqa2Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjMzNzIsImV4cCI6MjA5NzI5OTM3Mn0.akHCJ8VhL9p_NsiaW_Pj7i17T-uhBg6LHzJUoTjNw9E" \
+            -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaWFydnpyam54Z2J0cnFqa2Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjMzNzIsImV4cCI6MjA5NzI5OTM3Mn0.akHCJ8VhL9p_NsiaW_Pj7i17T-uhBg6LHzJUoTjNw9E")
+          echo "Supabase REST -> HTTP $code"
+          test "$code" = "200"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rinnova il timer se il repo e' fermo da 50+ giorni
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DAYS=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "Ultimo commit: $DAYS giorni fa"
+          if [ "$DAYS" -ge 50 ]; then
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > .keepalive
+            git add .keepalive
+            git commit -m "chore: keepalive"
+            git push
+            echo "Commit di rinnovo eseguito."
+          else
+            echo "Nessun rinnovo necessario."
+          fi
