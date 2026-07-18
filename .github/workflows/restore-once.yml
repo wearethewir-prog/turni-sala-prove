@@ -1,0 +1,16 @@
+name: Restore Supabase (one-shot)
+on:
+  workflow_dispatch:
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore project via Management API
+        run: |
+          code=$(curl -s -o /tmp/r -w "%{http_code}" -X POST \
+            "https://api.supabase.com/v1/projects/yaiarvzrjnxgbtrqjkfz/restore" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_MGMT_TOKEN }}" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "restore -> HTTP $code"
+          cat /tmp/r 2>/dev/null; echo
+          case "$code" in 2*) echo "restore accettato";; *) echo "::error::restore HTTP $code"; exit 1;; esac
