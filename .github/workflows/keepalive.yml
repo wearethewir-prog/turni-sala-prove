@@ -1,12 +1,18 @@
 name: Keepalive
 
-# Tiene attivo il progetto Supabase (free: pausa dopo ~7gg senza richieste).
-# Usa la RPC public.ping() (query reale sul DB) invece di un GET su tabella, che
-# il 18/07 si e' rivelato insufficiente (progetto andato in pausa lo stesso).
-# Il ping FALLISCE il job se non risponde 200 (email d'avviso: cosi' si VEDE).
+# Tiene attivo il progetto Supabase free.
+# STORIA: GET su tabella -> pausa il 13/07. RPC ping() in lettura -> pausa
+# comunque il ~04/08 (run verdi 01/08 e 03/08): le letture REST non contano
+# come "attivita'" per il contatore pause di Supabase.
+# QUINDI (v3, 24/08):
+#   1. controlla lo stato via Management API; se INACTIVE fa RESTORE da solo
+#   2. heartbeat di SCRITTURA vera sul DB (update app_version.updated_at)
+#   3. verifica end-to-end con la RPC ping() via REST anon (hard-fail)
+#   4. commit vuoto se il repo e' fermo da 45+ gg (GitHub spegne i cron a 60)
+# Anche nel caso peggiore (nuova pausa) l'auto-restore riparte entro 24h.
 on:
   schedule:
-    - cron: '30 6 */2 * *'   # ogni 2 giorni, 06:30 UTC
+    - cron: '30 6 * * *'   # ogni giorno, 06:30 UTC
   workflow_dispatch:
 
 permissions:
@@ -16,14 +22,45 @@ jobs:
   keepalive:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase (RPC public.ping)
+      - name: Stato progetto + auto-restore se in pausa
+        env:
+          MGMT: ${{ secrets.SUPABASE_MGMT_TOKEN }}
+        run: |
+          REF=yaiarvzrjnxgbtrqjkfz
+          status=$(curl -sS -H "Authorization: Bearer $MGMT" "https://api.supabase.com/v1/projects/$REF" | sed -nE 's/.*"status":"([^"]*)".*/\1/p')
+          echo "Stato: $status"
+          if [ "$status" != "ACTIVE_HEALTHY" ]; then
+            echo "Progetto non attivo -> restore..."
+            curl -sS -X POST -H "Authorization: Bearer $MGMT" -H "Content-Type: application/json" -d '{}' \
+              -o /dev/null -w "restore HTTP %{http_code}\n" "https://api.supabase.com/v1/projects/$REF/restore"
+            for i in $(seq 1 30); do
+              sleep 10
+              status=$(curl -sS -H "Authorization: Bearer $MGMT" "https://api.supabase.com/v1/projects/$REF" | sed -nE 's/.*"status":"([^"]*)".*/\1/p')
+              echo "  attesa $i: $status"
+              [ "$status" = "ACTIVE_HEALTHY" ] && break
+            done
+          fi
+          test "$status" = "ACTIVE_HEALTHY"
+
+      - name: Heartbeat SQL (scrittura vera sul DB)
+        env:
+          MGMT: ${{ secrets.SUPABASE_MGMT_TOKEN }}
+        run: |
+          REF=yaiarvzrjnxgbtrqjkfz
+          out=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $MGMT" -H "Content-Type: application/json" \
+            -d '{"query":"update public.app_version set updated_at = now() where id = 1 returning updated_at;"}')
+          echo "Heartbeat: $out"
+          echo "$out" | grep -q "updated_at"
+
+      - name: Verifica end-to-end (RPC ping via REST anon)
         run: |
           ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaWFydnpyam54Z2J0cnFqa2Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjMzNzIsImV4cCI6MjA5NzI5OTM3Mn0.akHCJ8VhL9p_NsiaW_Pj7i17T-uhBg6LHzJUoTjNw9E"
           code=$(curl -sS -o /tmp/r -w "%{http_code}" -X POST \
             "https://yaiarvzrjnxgbtrqjkfz.supabase.co/rest/v1/rpc/ping" \
             -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
             -H "Content-Type: application/json" -d '{}')
-          echo "Supabase RPC ping -> HTTP $code"; cat /tmp/r 2>/dev/null; echo
+          echo "RPC ping -> HTTP $code"; cat /tmp/r 2>/dev/null; echo
           test "$code" = "200"
 
       - name: Checkout
@@ -31,7 +68,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Heartbeat (evita auto-disable del workflow dopo 60 giorni)
+      - name: Rinnova il repo se fermo da 45+ giorni (anti-disable cron)
         run: |
           DIFF=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
           echo "Giorni dall'ultimo commit: $DIFF"
@@ -41,5 +78,5 @@ jobs:
             git commit --allow-empty -m "chore: keepalive heartbeat [skip ci]"
             git push
           else
-            echo "Nessun heartbeat necessario"
+            echo "Nessun rinnovo necessario"
           fi
